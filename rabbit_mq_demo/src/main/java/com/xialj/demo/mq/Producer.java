@@ -9,26 +9,26 @@ import com.rabbitmq.client.ConnectionFactory;
 
 public class Producer {
 	public static void sendMessage() throws IOException, TimeoutException {
-		// 鍒涘缓杩炴帴宸ュ巶
-		ConnectionFactory factory = new ConnectionFactory();
-		factory.setUsername("guest");
-		factory.setPassword("guest");
-		// 璁剧疆 RabbitMQ 鍦板潃
-		factory.setHost("localhost");
-		// 寤虹珛鍒颁唬鐞嗘湇鍔″櫒鍒拌繛鎺�
-		Connection conn = factory.newConnection();
-		// 鑾峰緱淇￠亾
-		Channel channel = conn.createChannel();
-		// 澹版槑浜ゆ崲鍣�
-		String exchangeName = "hello-exchange";
-		channel.exchangeDeclare(exchangeName, "direct", true);
+		//创建连接工厂
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setUsername("guest");
+        factory.setPassword("guest");
+        //设置 RabbitMQ 地址
+        factory.setHost("localhost");
+        //建立到代理服务器到连接
+        Connection conn = factory.newConnection();
+        //获得信道
+        Channel channel = conn.createChannel();
+        //声明交换器
+        String exchangeName = "hello-exchange";
+        channel.exchangeDeclare(exchangeName, "direct", true);
 
-		String routingKey = "hola";
-		// 鍙戝竷娑堟伅
-		byte[] messageBodyBytes = "quit".getBytes();
-		channel.basicPublish(exchangeName, routingKey, null, messageBodyBytes);
+        String routingKey = "hola";
+        //发布消息
+        byte[] messageBodyBytes = "quit".getBytes();
+        channel.basicPublish(exchangeName, routingKey, null, messageBodyBytes);
 
-		channel.close();
-		conn.close();
+        channel.close();
+        conn.close();
 	}
 }
