@@ -22,7 +22,7 @@ public class EasyConsumer {
 	        System.out.println(" [*] Waiting for messages. To exit press CTRL+C");
 
 	        DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-	            Order order = (Order) KryoUtil.deserializationObject(Order.class, delivery.getBody());
+	            Order order = (Order) KryoUtil.deserializationObject(delivery.getBody(),Order.class);
 	            System.out.println(" [x] Received '" + JSON.toJSONString(order) + "'");
 	        };
 	        channel.basicConsume(QUEUE_NAME, true, deliverCallback, (consumerTag) -> {

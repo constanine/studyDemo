@@ -37,7 +37,7 @@ public class KryoUtil {
 		return b;
 	}
 
-	public static <T> Object deserializationObject(Class<T> clazz, byte[] byteData) {
+	public static <T> Object deserializationObject(byte[] byteData,Class<T> clazz) {
 		Kryo kryo = new Kryo();
 		kryo.setReferences(false);
 		kryo.register(clazz, new JavaSerializer());

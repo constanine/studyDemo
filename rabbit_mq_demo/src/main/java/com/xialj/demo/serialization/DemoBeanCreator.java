@@ -1,4 +1,4 @@
-package com.xialj.demo.mq.kryo;
+package com.xialj.demo.serialization;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -7,7 +7,7 @@ import java.util.List;
 import com.xialj.demo.mq.struc.GoodsItem;
 import com.xialj.demo.mq.struc.Order;
 
-public class KryoTest {
+public class DemoBeanCreator {
 	private static String[] nameSeq = { "笔记本", "鼠标", "内存", "硬盘", "机箱" };
 	private static BigDecimal[] priceReq = { new BigDecimal("9889"), new BigDecimal("98"), new BigDecimal("889"),
 			new BigDecimal("589"), new BigDecimal("89") };
