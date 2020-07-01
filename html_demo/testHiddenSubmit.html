@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+	<meta http-equiv="Content-Type" content="application/x-javascript;charset=UTF-8">
+	<title>测试隐藏提交</title>	    
+    <script ype="text/javascript" src="js/jquery-3.1.1.min.js"></script>
+</head>
+<body>
+<div>
+    <h1>Hidden submit test</h1>
+</div>
+<form>
+    <div>
+        <input type="text" name="t1" />
+    </div>
+    <div>
+        <input type="text" name="t2" />
+    </div>
+    <div>
+        <input type="button" value="testbtn" id="testbtn" />
+    </div>    
+    <div>
+        <input type="submit" valeu="enter提交" style="display: none;"/>
+    </div>
+    
+</form>
+<script type="text/javascript">
+    $("#testbtn").click(function(){
+        alert("this is button");
+    });
+    $("form").submit(function(){
+        alert("this is submit");
+        $("#testbtn").click();
+    });
+</script>
+</body>
+</html>

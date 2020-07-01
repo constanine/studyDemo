@@ -8,7 +8,7 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
-import com.xialj.demo.mq.kryo.KryoUtil;
+import com.xialj.demo.mq.kryo.KryoUtilTest;
 import com.xialj.demo.mq.struc.Order;
 
 public class EasyConsumer {
@@ -22,7 +22,7 @@ public class EasyConsumer {
 	        System.out.println(" [*] Waiting for messages. To exit press CTRL+C");
 
 	        DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-	            Order order = (Order) KryoUtil.deserializationObject(delivery.getBody(),Order.class);
+	            Order order = (Order) KryoUtilTest.deserializationObject(delivery.getBody(),Order.class);
 	            System.out.println(" [x] Received '" + JSON.toJSONString(order) + "'");
 	        };
 	        channel.basicConsume(QUEUE_NAME, true, deliverCallback, (consumerTag) -> {

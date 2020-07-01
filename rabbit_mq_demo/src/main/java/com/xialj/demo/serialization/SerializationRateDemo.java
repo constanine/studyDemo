@@ -7,8 +7,8 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.xialj.demo.mq.bson.BsonUtil;
-import com.xialj.demo.mq.kryo.KryoUtil;
+import com.xialj.demo.mq.bson.BsonUtilTest;
+import com.xialj.demo.mq.kryo.KryoUtilTest;
 import com.xialj.demo.mq.struc.Order;
 
 public class SerializationRateDemo {
@@ -57,7 +57,7 @@ public class SerializationRateDemo {
 	private static class BSONSerializationHandler implements SerializationHandler{
 		@Override
 		public Object serialization(Order order) throws Exception {
-			return BsonUtil.serializationObjectbyObjectMapper(order);
+			return BsonUtilTest.serializationObjectbyObjectMapper(order);
 		}
 		@Override
 		public String getName() {
@@ -66,14 +66,14 @@ public class SerializationRateDemo {
 		@Override
 		public Order deserialization(Object obj) throws JsonParseException, JsonMappingException, IOException {
 			byte[] bytearray = (byte[]) obj;
-			return BsonUtil.deserializationObject(bytearray, Order.class);
+			return BsonUtilTest.deserializationObject(bytearray, Order.class);
 		}
 	}
 	
 	private static class KryoSerializationHandler implements SerializationHandler{
 		@Override
 		public Object serialization(Order order) throws FileNotFoundException {
-			return KryoUtil.serializationObject(Order.class, order);
+			return KryoUtilTest.serializationObject(Order.class, order);
 		}
 		@Override
 		public String getName() {
@@ -82,7 +82,7 @@ public class SerializationRateDemo {
 		@Override
 		public Order deserialization(Object obj) {
 			byte[] byteData = (byte[]) obj;
-			return (Order) KryoUtil.deserializationObject(byteData,Order.class);
+			return (Order) KryoUtilTest.deserializationObject(byteData,Order.class);
 		}
 	}
 }
