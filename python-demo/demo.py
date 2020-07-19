@@ -70,19 +70,17 @@ def startDoc():
     for paragraph in paragraphs:
         print(paragraph)
     tables = doc.tables;
-    print(doc.tables[0])
     # for table in tables:
     #    for row in table.rows:  # 读每行
     #        #row_content = []
     #       for cell in row.cells:  # 读一行中的所有单元格
     #            c = cell.text
-    #            print(c)
+    #            print(c)n
     #            row_content.append(c)
     #            print(row_content)  # 以列表形式导出每一行数据
     table = tables[0]
-    print(table)
-    print(table.Cell(0,0))
-    testTxt=table.Cell(0,0).Range.Text
+    testTxt = table.Cell(0, 0).Range.Text
+    testTxt=testTxt.replace("\t"," ").replace("\r","").replace("\n"," ")
     print("table-0-0,"+testTxt.encode("utf-8").decode("utf-8"))
     if (testTxt.startswith("表1")):
         print("匹配")
