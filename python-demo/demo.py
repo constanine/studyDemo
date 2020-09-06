@@ -5,10 +5,10 @@ from win32com import client #doc
 
 
 def startXls():
-    workbook = xlrd.open_workbook("test-A.xls")
+    workbook = xlrd.open_workbook("resources/simple-demo/test-A.xls")
     sheet = workbook.sheet_by_index(0)
     rowSize = sheet.nrowsB
-    workbookB = xlrd.open_workbook("test-B.xls")
+    workbookB = xlrd.open_workbook("resources/simple-demo/test-B.xls")
     sheetB = workbookB.sheet_by_index(0)
     rowSizeB = sheetB.nrows
     for rowIdx in range(rowSize):
@@ -21,11 +21,11 @@ def startXls():
             print("不匹配")
 
 def startXlsx():
-    workbook = openpyxl.load_workbook("test-A.xlsx")
+    workbook = openpyxl.load_workbook("resources/simple-demo/test-A.xlsx")
     sheet_names = workbook.sheetnames;
     sheet = workbook[sheet_names[0]]
     rowSize = sheet.max_row
-    workbookB = openpyxl.load_workbook("test-B.xlsx")
+    workbookB = openpyxl.load_workbook("resources/simple-demo/test-B.xlsx")
     sheet_namesB = workbookB.sheetnames;
     sheetB = workbookB[sheet_names[0]]
     rowSizeB = sheetB.max_row
@@ -65,7 +65,7 @@ def startDocx():
 
 def startDoc():
     word = client.Dispatch('Word.Application')
-    doc = word.Documents.Open(FileName="D:/work/GIT_WORK/studyDemo/python-demo/test-A.doc",Encoding='gbk')
+    doc = word.Documents.Open(FileName="/resources/simple-demo/test-A.doc", Encoding='gbk')
     paragraphs = doc.paragraphs;
     for paragraph in paragraphs:
         print(paragraph)

@@ -91,19 +91,19 @@ def __getManualCellValueXlsx(filepath,sheetIdx,columnIdxA,columnIdxB,sourceVal):
     workbook = openpyxl.load_workbook(filepath)
     sheet_names = workbook.sheetnames;
     sheet = workbook[sheet_names[sheetIdx]]
-    rowSize = sheet.max_row
+    rowSize = sheet.max_row+1
     for rowIdx in range(1,rowSize):
         cell = sheet.cell(row = rowIdx,column =columnIdxA)
         if (cell.value == sourceVal):
-            return sheet.cell(row = rowIdx,column =columnIdxB)
+            return sheet.cell(row = rowIdx,column =columnIdxB).value
 
 def __getManualCellValueDocx(filepath,sheetIdx,columnIdxA,columnIdxB,sourceVal):
     doc = docx.Document(filepath);
     tables = doc.tables;
     table = tables[sheetIdx];
     for row in table.rows:
-        if (row[columnIdxA].text == sourceVal):
-            return row[columnIdxB].text
+        if (row.cells[columnIdxA].text == sourceVal):
+            return row.cells[columnIdxB].text
 
 def __getManualCellValueDoc(filepath, sheetIdx, columnIdxA,columnIdxB, sourceVal):
     word = client.Dispatch('Word.Application')
@@ -111,5 +111,9 @@ def __getManualCellValueDoc(filepath, sheetIdx, columnIdxA,columnIdxB, sourceVal
     tables = doc.tables;
     table = tables[sheetIdx];
     for row in table.rows:
-        if (row[columnIdxA].text == sourceVal):
-            return row[columnIdxB].text
+        cellVal = row.Cells[columnIdxA].Range.Text;
+        cellVal = cellVal[0:len(cellVal) - 2]
+        if (cellVal == sourceVal):
+            result = row.Cells[columnIdxB].Range.Text;
+            result = result[0:len(result) - 2];
+            return result;
