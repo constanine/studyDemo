@@ -62,8 +62,10 @@ def __findCodeColumnIdxDoc(filepath, sheetIdx, columnTitle):
     table = tables[sheetIdx];
     row = table.rows[0];
     columnIdx = 0;
-    for cell in row:
-        if cell.text == columnTitle:
+    for cell in row.Cells:
+        cellVal = cell.Range.Text;
+        cellVal = cellVal[0:len(cellVal) - 2]
+        if cellVal == columnTitle:
             return columnIdx
         columnIdx += 1
 
