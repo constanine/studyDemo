@@ -4,6 +4,7 @@ import docx; #docx
 from win32com import client #doc
 
 
+
 def startXls():
     workbook = xlrd.open_workbook("resources/simple-demo/test-A.xls")
     sheet = workbook.sheet_by_index(0)
@@ -93,4 +94,6 @@ def startDoc():
 #startXls();
 #startDocx();
 #startXlsx();
-startDoc();
+#startDoc();
+
+print("aaa"+input("请输入:"))

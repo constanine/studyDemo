@@ -1,4 +1,5 @@
 import api_wlx;
+import ExcelTextboxTool;
 
 def test_getRightCellValue():
    print("xls,"+api_wlx.getRightCellValue("resources/api-demo/test-A.xls",0,0,"MD5"));
@@ -16,4 +17,7 @@ def test_getManualCellValue():
 
 #test_getRightCellValue();
 #test_getManualCellValue();
-print("doc," + api_wlx.findCodeVal("D:/work/GIT_WORK/studyDemo/python-demo/application/resources/api-demo/test-A.doc", 1, 0, "数量", "葡萄"));
+result = ExcelTextboxTool.getXlsxTexts("resources/api-demo/test-A.xlsx");
+print(result);
+#test-A.doc
+
