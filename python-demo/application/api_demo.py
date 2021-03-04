@@ -19,5 +19,7 @@ def test_getManualCellValue():
 #test_getManualCellValue();
 result = ExcelTextboxTool.getXlsxTexts("resources/api-demo/test-A.xlsx");
 print(result);
+result = ExcelTextboxTool.getXlsTexts("resources/api-demo/TEST-DEMO1.xls");
+print(result);
 #test-A.doc
 
