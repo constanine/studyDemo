@@ -1,5 +1,6 @@
 import api_wlx;
 import ExcelTextboxTool;
+import DocTextboxTool;
 
 def test_getRightCellValue():
    print("xls,"+api_wlx.getRightCellValue("resources/api-demo/test-A.xls",0,0,"MD5"));
@@ -17,9 +18,12 @@ def test_getManualCellValue():
 
 #test_getRightCellValue();
 #test_getManualCellValue();
-result = ExcelTextboxTool.getXlsxTexts("resources/api-demo/test-A.xlsx");
-print(result);
-result = ExcelTextboxTool.getXlsTexts("resources/api-demo/TEST-DEMO1.xls");
+#result = ExcelTextboxTool.getXlsxTexts("resources/api-demo/test-A.xlsx");
+#print(result);
+#result = ExcelTextboxTool.getXlsTexts("resources/api-demo/TEST-DEMO1.xls");
+#print(result);
+result = DocTextboxTool.getDocxTexts("resources/api-demo/test-A.docx");
+#result = DocTextboxTool.getDocTexts("D:/work/GIT_WORK/studyDemo/python-demo/application/resources/api-demo/test-A.doc");
 print(result);
 #test-A.doc
 
