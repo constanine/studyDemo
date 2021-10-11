@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -18,7 +19,7 @@ public class LockServerCore {
 	/**
 	 * 将lockType对应的锁以及下标集合缓存起来
 	 */
-	private static Map<String, LockTypeData> TAG_GROUP_POOL = new HashMap<String, LockTypeData>();
+	private static Map<String, LockTypeData> TAG_GROUP_POOL = new ConcurrentHashMap<String, LockTypeData>();
 	/**
 	 * 所有锁存在的锁池缓存
 	 */
@@ -32,55 +33,66 @@ public class LockServerCore {
 	 */
 	private static Map<String, List<String[]>> LOCKTYPE_PK_POOL = new ConcurrentHashMap<String, List<String[]>>();
 
-	public static void registerLockType(String lockType, int[] lockTypeTags) {
+	private static void registerLockType(String lockType, int[] pkGroups, int[] searchIndexGourps,
+			int[] reetrantGroups) {
 		if (null == TAG_GROUP_POOL.get(lockType)) {
-			TAG_GROUP_POOL.put(lockType, new LockTypeData(lockTypeTags));
+			TAG_GROUP_POOL.put(lockType,
+					new LockTypeData(megreIndexTagPos(pkGroups, searchIndexGourps, reetrantGroups), pkGroups));
 		}
 	}
 
 	public static void acquire(String lockType, int[] pkGroups, int[] searchIndexGourps, int[] reetrantGroups,
-			boolean beShared, String[] tagValues, long expireTimeMs) {
+			boolean beShared, String[] tagValues, long expireTimeMs) throws InterruptedException {
+		registerLockType(lockType, pkGroups, searchIndexGourps, reetrantGroups);
 		String[] pkValues = extractPKValues(pkGroups, tagValues);
 		String[] reetrantValues = extractReetrantValues(reetrantGroups, tagValues);
 		String lockKey = buildPKString(pkValues);
 		LockTypeData lockTypeData = TAG_GROUP_POOL.get(lockType);
-		if (lockTypeData.getLock().tryLock()) {
-			List<String[]> matchPkGroups = getPKMatchGroups(lockType, pkGroups, pkValues);
-			if (matchPkGroups.size() == 0) {
-				LOCK_POOL.put(lockKey, new LockData(lockKey, beShared, tagValues,
-						System.currentTimeMillis() + expireTimeMs, lockType));
-				buildTagIndex(lockType, pkGroups, searchIndexGourps, reetrantGroups, lockKey, tagValues);
-			} else {
-				if (!beShared) {
-					throw new RuntimeException(
-							"LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:" + beShared + ",tags:"
-									+ tagValues + " can't locked,beacuse of already has other locks:" + matchPkGroups);
-				} else {
-					boolean canReentrant = true;
-					pkM: for (String[] matchPkGroup : matchPkGroups) {
-						if (!LOCK_POOL.get(buildPKString(matchPkGroup)).isShared()) {
-							String[] curReetrantValues = extractReetrantValues(reetrantGroups,
-									LOCK_POOL.get(lockKey).getTags());
-							for (int pos = 0; pos < reetrantValues.length; pos++) {
-								if (!reetrantValues[pos].equals(curReetrantValues[pos])) {
+		try {
+			if (lockTypeData.getLock().tryLock(1, TimeUnit.SECONDS)) {
+				try {
+					List<String[]> matchPkGroups = getPKMatchGroups(lockType, pkGroups, pkValues);
+					if (matchPkGroups.size() == 0) {
+						LOCK_POOL.put(lockKey, new LockData(lockKey, beShared, tagValues,
+								System.currentTimeMillis() + expireTimeMs, lockType));
+						buildTagIndex(lockType, lockKey, tagValues);
+					} else {
+						if (!beShared) {
+							throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:"
+									+ beShared + ",tags:" + tagValues
+									+ " can't locked,beacuse of already has other locks:" + matchPkGroups);
+						} else {
+							boolean canReentrant = true;
+							pkM: for (String[] matchPkGroup : matchPkGroups) {
+								if (!LOCK_POOL.get(buildPKString(matchPkGroup)).isShared()) {
+									String[] curReetrantValues = extractReetrantValues(reetrantGroups,
+											LOCK_POOL.get(lockKey).getTagValues());
+									for (int pos = 0; pos < reetrantValues.length; pos++) {
+										if (!reetrantValues[pos].equals(curReetrantValues[pos])) {
+											canReentrant = false;
+											break pkM;
+										}
+									}
+								} else {
 									canReentrant = false;
-									break pkM;
+									break;
 								}
 							}
-						} else {
-							canReentrant = false;
-							break;
+							if (canReentrant) {
+								LOCK_POOL.put(lockKey, LOCK_POOL.get(lockKey).relock(expireTimeMs));
+							} else {
+								throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:"
+										+ beShared + ",tags:" + tagValues
+										+ " can't locked,beacuse of already has other locks:" + matchPkGroups);
+							}
 						}
 					}
-					if (canReentrant) {
-						LOCK_POOL.put(lockKey, LOCK_POOL.get(lockKey).relock(expireTimeMs));
-					} else {
-						throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:"
-								+ beShared + ",tags:" + tagValues + " can't locked,beacuse of already has other locks:"
-								+ matchPkGroups);
-					}
+				} finally {
+					lockTypeData.getLock().unlock();
 				}
 			}
+		} catch (InterruptedException e) {
+			throw new InterruptedException("lock执行等待超时");
 		}
 	}
 
@@ -92,7 +104,7 @@ public class LockServerCore {
 		LockTypeData lockTypeData = TAG_GROUP_POOL.get(lockType);
 		if (lockTypeData.getLock().tryLock()) {
 			if (LOCK_POOL.get(lockKey).isShared() | beShared) {
-				String[] curReetrantValues = extractReetrantValues(reetrantGroups, LOCK_POOL.get(lockKey).getTags());
+				String[] curReetrantValues = extractReetrantValues(reetrantGroups, LOCK_POOL.get(lockKey).getTagValues());
 				boolean canRelease = true;
 				for (int pos = 0; pos < reetrantValues.length; pos++) {
 					if (!reetrantValues[pos].equals(curReetrantValues[pos])) {
@@ -121,7 +133,7 @@ public class LockServerCore {
 		LockTypeData lockTypeData = TAG_GROUP_POOL.get(lockType);
 		if (lockTypeData.getLock().tryLock()) {
 			if (LOCK_POOL.get(lockKey).isShared() | beShared) {
-				String[] curReetrantValues = extractReetrantValues(reetrantGroups, LOCK_POOL.get(lockKey).getTags());
+				String[] curReetrantValues = extractReetrantValues(reetrantGroups, LOCK_POOL.get(lockKey).getTagValues());
 				boolean canRelease = true;
 				for (int pos = 0; pos < reetrantValues.length; pos++) {
 					if (!reetrantValues[pos].equals(curReetrantValues[pos])) {
@@ -133,7 +145,7 @@ public class LockServerCore {
 					LOCK_POOL.get(lockKey).release();
 					if (LOCK_POOL.get(lockKey).getCount() == 0) {
 						LOCK_POOL.remove(lockKey);
-						releaseTagIndex(lockType, pkGroups, searchIndexGourps, reetrantGroups, lockKey, tagValues);
+						releaseTagIndex(lockType, lockKey, tagValues);
 					}
 				} else {
 					throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:" + beShared
@@ -146,53 +158,53 @@ public class LockServerCore {
 		}
 	}
 
-	public static List<String> findByTags(String[][] tagConditions){
+	public static List<String> findByTags(String lockType,String[][] tagConditions) {
 		List<String> result = new LinkedList<String>();
-		for(int pos=0;pos<tagConditions.length;pos++) {
-			String[] tagCondition=tagConditions[pos];
-			if(null != tagCondition && tagCondition.length>0) {
+		for (int pos = 0; pos < tagConditions.length; pos++) {
+			String[] tagCondition = tagConditions[pos];
+			if (null != tagCondition && tagCondition.length > 0) {
 				Set<String> tagMatchSet = new HashSet<String>();
-				for(String tagValue:tagCondition) {
-					for(String lockKey:TAG_INDEX_POOL.get(pos).get(tagValue)) {
+				for (String tagValue : tagCondition) {
+					for (String lockKey : TAG_INDEX_POOL.get(pos).get(tagValue)) {
 						tagMatchSet.add(lockKey);
 					}
 				}
-				if(result.isEmpty()) {
+				if (result.isEmpty()) {
 					result.addAll(tagMatchSet);
-				}else {
-					for(String lockKey:tagMatchSet) {
-						if(!result.contains(lockKey)) {
+				} else {
+					for (String lockKey : tagMatchSet) {
+						if (!result.contains(lockKey)) {
 							result.remove(lockKey);
 						}
 					}
-					for(String lockKey:result) {
-						if(!tagMatchSet.contains(lockKey)) {
+					for (String lockKey : result) {
+						if (!tagMatchSet.contains(lockKey)) {
 							result.remove(lockKey);
 						}
 					}
 				}
 			}
-		}		
+		}
 		return result;
 	}
-	
+
+	public static void releaseByTags(String lockType, String[][] tagConditions) {
+		List<String> result = findByTags(lockType,tagConditions);
+		for (String lockKey : result) {
+			LOCK_POOL.get(lockKey).release();
+			if (LOCK_POOL.get(lockKey).getCount() == 0) {
+				LOCK_POOL.remove(lockKey);
+				releaseTagIndex(lockType, lockKey, LOCK_POOL.get(lockKey).getTagValues());
+			}
+		}
+	}
+
 	private static String buildPKString(String[] pkValues) {
 		return StringUtils.join(pkValues, "-");
 	}
 
-	private static void buildTagIndex(String lockType, int[] pkGroups, int[] searchIndexGourps, int[] reetrantGroups,
-			String lockKey, String[] tagValues) {
-		Set<Integer> needBuildIndexesPosSet = new HashSet<Integer>();
-		for (int pkPos : pkGroups) {
-			needBuildIndexesPosSet.add(pkPos);
-		}
-		for (int sPos : searchIndexGourps) {
-			needBuildIndexesPosSet.add(sPos);
-		}
-		for (int rPos : reetrantGroups) {
-			needBuildIndexesPosSet.add(rPos);
-		}
-		for (Integer idx : needBuildIndexesPosSet) {
+	private static void buildTagIndex(String lockType, String lockKey, String[] tagValues) {
+		for (Integer idx : TAG_GROUP_POOL.get(lockType).getNeedBuildIndexesPosSet()) {
 			Map<String, List<String>> tagIndex = TAG_INDEX_POOL.get(idx);
 			if (null == tagIndex) {
 				tagIndex = new HashMap<String, List<String>>();
@@ -214,12 +226,21 @@ public class LockServerCore {
 			pkGroupIndex = new LinkedList<String[]>();
 			LOCKTYPE_PK_POOL.put(lockType, pkGroupIndex);
 		}
-		String[] pkValues = extractPKValues(pkGroups, tagValues);
+		String[] pkValues = extractPKValues(TAG_GROUP_POOL.get(lockType).getPkGroups(), tagValues);
 		pkGroupIndex.add(pkValues);
 	}
 
-	private void releaseTagIndex(String lockType, int[] pkGroups, int[] searchIndexGourps, int[] reetrantGroups,
-			String lockKey, String[] tagValues) {
+	private static void releaseTagIndex(String lockType, String lockKey, String[] tagValues) {
+		for (Integer idx : TAG_GROUP_POOL.get(lockType).getNeedBuildIndexesPosSet()) {
+			String tagValue = tagValues[idx];
+			TAG_INDEX_POOL.get(idx).get(tagValue).remove(lockKey);
+		}
+		List<String[]> pkGroupIndex = LOCKTYPE_PK_POOL.get(lockType);
+		String[] pkValues = extractPKValues(TAG_GROUP_POOL.get(lockType).getPkGroups(), tagValues);
+		pkGroupIndex.remove(pkValues);
+	}
+
+	private static Set<Integer> megreIndexTagPos(int[] pkGroups, int[] searchIndexGourps, int[] reetrantGroups) {
 		Set<Integer> needBuildIndexesPosSet = new HashSet<Integer>();
 		for (int pkPos : pkGroups) {
 			needBuildIndexesPosSet.add(pkPos);
@@ -230,13 +251,7 @@ public class LockServerCore {
 		for (int rPos : reetrantGroups) {
 			needBuildIndexesPosSet.add(rPos);
 		}
-		for (Integer idx : needBuildIndexesPosSet) {
-			String tagValue = tagValues[idx];
-			TAG_INDEX_POOL.get(idx).get(tagValue).remove(lockKey);
-		}
-		List<String[]> pkGroupIndex = LOCKTYPE_PK_POOL.get(lockType);
-		String[] pkValues = extractPKValues(pkGroups, tagValues);
-		pkGroupIndex.remove(pkValues);
+		return needBuildIndexesPosSet;
 	}
 
 	private static String[] extractPKValues(int[] pkGroups, String[] tagValues) {

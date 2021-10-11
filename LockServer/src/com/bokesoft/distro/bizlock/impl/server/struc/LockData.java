@@ -2,16 +2,16 @@ package com.bokesoft.distro.bizlock.impl.server.struc;
 
 public class LockData {
 	private String key;
-	private String[] tags;
+	private String[] tagValues;
 	private long outTime;
 	private boolean shared;
 	private String lockType;
 	private long count = 0;
 
-	public LockData(String key, boolean shared, String[] tags, long outTime, String lockType) {
+	public LockData(String key, boolean shared, String[] tagValues, long outTime, String lockType) {
 		this.key = key;
 		this.shared = shared;
-		this.tags = tags;
+		this.tagValues = tagValues;
 		this.outTime = outTime;
 		this.lockType = lockType;
 	}
@@ -24,8 +24,8 @@ public class LockData {
 		return shared;
 	}
 
-	public String[] getTags() {
-		return tags;
+	public String[] getTagValues() {
+		return tagValues;
 	}
 
 	public long getOutTime() {
