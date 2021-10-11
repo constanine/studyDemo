@@ -1,14 +1,28 @@
 import zipfile as z
+import win32com.client as win32
+import os
+pwd = os.getcwd()
 
-
-def getXlsTexts(this):
-    s = z.ZipFile(this)
+def getXlsTexts(filepath):
+    s = z.ZipFile(filepath)
     p='drs/shapexml.xml'  # shapes path, *.xls default
     return XlsParser(s.read(p)).text;
 
+def getXlsTexts2(filepath):
+    excel_app = win32.DispatchEx('Excel.Application')
+    #excel_app.DisplayAlerts = False
+    try:
+        wb = excel_app.Workbooks.Open(filepath)
+#        xlsx_file = filepath + "x"
+        xlsx_file = pwd+"/TestTransfA.xlsx"
+        wb.SaveAs(xlsx_file, FileFormat=51)
+        #wb.Close()
+    finally:
+        excel_app.Quit()
+    return getXlsxTexts(xlsx_file)
 
-def getXlsxTexts(this):
-    s = z.ZipFile(this)
+def getXlsxTexts(filepath):
+    s = z.ZipFile(filepath)
     p='xl/drawings/drawing1.xml'  # shapes path, *.xlsx default
     return XlsxParser(s.read(p)).text;
 
@@ -75,7 +89,7 @@ class XlsParser(object):
     @property
     def text(self):
         t = self.txbody_content('xdr:txBody')  # list of XML codes, each containing a seperate textboxes, messy (with extra xml that is)
-        l = [i.p_content('a:p xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"') for i in t]  # split into sublists by line breaks (inside the textbox), messy
+        l = [i.p_content('a:p>') for i in t]# split into sublists by line breaks (inside the textbox), messy
         w = [[[h[0:-2] for h in i.tag_content('a:t>')] if i else ['\n'] for i in j] for j in l]  # clean into sublists by cell-by-cell basis (and mind empty lines)
         l = [[''.join(i) for i in j] for j in w]  #  join lines overlapping multiple cells into one sublist
         return [ decodeString4Chinese(i) for j in l for i in j]  #  join sublists of lines into strings seperated by newline char

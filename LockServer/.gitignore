@@ -1,0 +1,15 @@
+.classpath
+.project
+.settings/
+target/
+devenv
+*.log*
+*.iml
+.idea/
+*.versionsBackup
+!NOTICE-BIN
+!LICENSE-BIN
+.DS_Store
+localbin
+nohup.out
+__pycache__/ExcelTextboxTool.cpython-38.pyc
