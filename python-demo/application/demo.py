@@ -40,7 +40,7 @@ def startXlsx():
             print("不匹配")
 
 def startDocx():
-    doc = docx.Document("test-A.docx");
+    doc = docx.Document("resources/api-demo/test-A.docx");
     paragraphs = doc.paragraphs;
     for paragraph in paragraphs:
         print(paragraph.text)
@@ -92,8 +92,8 @@ def startDoc():
     else:
         print("不匹配")
 #startXls();
-#startDocx();
+startDocx();
 #startXlsx();
 #startDoc();
 
-print("aaa"+input("请输入:"))
+##print("aaa"+input("请输入:"))

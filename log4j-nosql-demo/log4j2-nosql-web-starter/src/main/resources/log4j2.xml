@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration status="info" monitorInterval="30">
+	<appenders>
+		<!--这个输出控制台的配置 -->
+		<console name="Console" target="SYSTEM_OUT">
+			<!--输出日志的格式 -->
+			<PatternLayout
+				pattern="%{[ %p ] [%-d{yyyy-MM-dd HH:mm:ss}] [%l] %m%n}" />
+		</console>
+		<NoSql name="databaseAppender">
+			<InfluxDb databaseName="applicationDb"
+				seriesName="applicationLog" url="http://sandbox.influxdb.com:8086/"
+				username="loggingUser" password="abc123" />
+		</NoSql>
+	</appenders>
+
+	<loggers>
+		<!--过滤掉spring和mybatis的一些无用的DEBUG信息 -->
+		<root level="debug">
+			<appender-ref ref="Console" />
+			<appender-ref ref="databaseAppender" />
+		</root>
+	</loggers>
+</configuration>

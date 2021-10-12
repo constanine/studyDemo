@@ -40,9 +40,11 @@ public class LockServerCore {
 			throws InterruptedException {
 		if (null == TAG_GROUP_POOL.get(lockType)) {
 			if (lock.tryLock(1, TimeUnit.SECONDS)) {
-				TAG_GROUP_POOL.put(lockType,
-						new LockTypeData(megreIndexTagPos(pkGroups, searchIndexGourps, reetrantGroups), pkGroups));
-				init_TAG_INDEX_POOL(megreIndexTagPos(pkGroups, searchIndexGourps, reetrantGroups));
+				if (null == TAG_GROUP_POOL.get(lockType)) {
+					TAG_GROUP_POOL.put(lockType,
+							new LockTypeData(megreIndexTagPos(pkGroups, searchIndexGourps, reetrantGroups), pkGroups));
+					init_TAG_INDEX_POOL(megreIndexTagPos(pkGroups, searchIndexGourps, reetrantGroups));
+				}
 				lock.unlock();
 			}
 		}
@@ -59,39 +61,63 @@ public class LockServerCore {
 			if (lockTypeData.getLock().tryLock(1, TimeUnit.SECONDS)) {
 				try {
 					List<String[]> matchPkGroups = getPKMatchGroups(lockType, pkGroups, pkValues);
+					// 如果matchPkGroups为空,则直接添加lock
 					if (matchPkGroups.size() == 0) {
 						LOCK_POOL.put(lockKey, new LockData(lockKey, beShared, tagValues,
 								System.currentTimeMillis() + expireTimeMs, lockType));
 						buildTagIndex(lockType, lockKey, tagValues);
 					} else {
+						/*
+						 * 如果当前锁是独立锁,那么应该锁池只能存在一把匹配的锁,且该锁主键和可重入条件应该一致
+						 * 如果当前锁是共享锁,那么锁池里应该都是共享锁,才能锁起来,一旦有独立锁,则就报错
+						 */
+						boolean canRelock = true;
+						boolean canReentrant = true;
 						if (!beShared) {
-							throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:"
-									+ beShared + ",tags:" + tagValues
-									+ " can't locked,beacuse of already has other locks:" + matchPkGroups);
+							if (matchPkGroups.size() != 1) {
+								canRelock = false;
+							} else {
+								String[] matchPkGroup = matchPkGroups.get(0);
+								canRelock = judgeTagValuesIsEqual(pkValues, matchPkGroup);
+								if (canRelock) {
+									if (!LOCK_POOL.get(buildPKString(matchPkGroup)).isShared()) {
+										String[] curReetrantValues = extractReetrantValues(reetrantGroups,
+												LOCK_POOL.get(lockKey).getTagValues());
+										canReentrant = judgeTagValuesIsEqual(reetrantValues, curReetrantValues);
+									} else {
+										canRelock = false;
+									}
+								}
+							}
 						} else {
-							boolean canReentrant = true;
-							pkM: for (String[] matchPkGroup : matchPkGroups) {
-								if (!LOCK_POOL.get(buildPKString(matchPkGroup)).isShared()) {
+							for (String[] matchPkGroup : matchPkGroups) {
+								if (LOCK_POOL.get(buildPKString(matchPkGroup)).isShared()) {
 									String[] curReetrantValues = extractReetrantValues(reetrantGroups,
-											LOCK_POOL.get(lockKey).getTagValues());
-									for (int pos = 0; pos < reetrantValues.length; pos++) {
-										if (!reetrantValues[pos].equals(curReetrantValues[pos])) {
-											canReentrant = false;
-											break pkM;
-										}
+											LOCK_POOL.get(buildPKString(matchPkGroup)).getTagValues());
+									canReentrant = judgeTagValuesIsEqual(reetrantValues, curReetrantValues);
+									if (!canReentrant) {
+										break;
 									}
 								} else {
-									canReentrant = false;
+									canRelock = false;
 									break;
 								}
 							}
-							if (canReentrant) {
+						}
+						if (canReentrant && canRelock) {
+							if (null != LOCK_POOL.get(lockKey)) {
 								LOCK_POOL.put(lockKey, LOCK_POOL.get(lockKey).relock(expireTimeMs));
 							} else {
-								throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:"
-										+ beShared + ",tags:" + tagValues
-										+ " can't locked,beacuse of already has other locks:" + matchPkGroups);
+								LOCK_POOL.put(lockKey, new LockData(lockKey, beShared, tagValues,
+										System.currentTimeMillis() + expireTimeMs, lockType));
+								buildTagIndex(lockType, lockKey, tagValues);
 							}
+						} else {
+							;
+							throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:"
+									+ beShared + ",tags:[" + StringUtils.join(tagValues, ",")
+									+ "] can't locked,beacuse of already has other locks:"
+									+ showOtherLocks(matchPkGroups));
 						}
 					}
 				} finally {
@@ -101,6 +127,15 @@ public class LockServerCore {
 		} catch (InterruptedException e) {
 			throw new InterruptedException("lock执行等待超时");
 		}
+	}
+
+	private static String showOtherLocks(List<String[]> matchPkGroups) {
+		StringBuffer result = new StringBuffer("[");
+		for (String[] matchPkGroup : matchPkGroups) {
+			result.append(buildPKString(matchPkGroup) + ",");
+		}
+		result.append("]");
+		return result.toString();
 	}
 
 	public void renew(String lockType, int[] pkGroups, int[] searchIndexGourps, int[] reetrantGroups, boolean beShared,
@@ -124,11 +159,13 @@ public class LockServerCore {
 					LOCK_POOL.get(lockKey).renew(expireTimeMs);
 				} else {
 					throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:" + beShared
-							+ ",tags:" + tagValues + " can't renew,beacuse of already lock not match");
+							+ ",tags:" + StringUtils.join(tagValues, ",")
+							+ " can't renew,beacuse of already lock not match");
 				}
 			} else {
-				throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:" + beShared
-						+ ",tags:" + tagValues + " can't renew,beacuse of already lock not match");
+				throw new RuntimeException(
+						"LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:" + beShared + ",tags:"
+								+ StringUtils.join(tagValues, ",") + " can't renew,beacuse of already lock not match");
 			}
 		}
 	}
@@ -165,36 +202,6 @@ public class LockServerCore {
 						+ ",tags:" + tagValues + " can't release,beacuse of already lock not match");
 			}
 		}
-	}
-
-	public static List<String> findByTags(String lockType, String[][] tagConditions) {
-		List<String> result = new LinkedList<String>();
-		for (int pos = 0; pos < tagConditions.length; pos++) {
-			String[] tagCondition = tagConditions[pos];
-			if (null != tagCondition && tagCondition.length > 0) {
-				Set<String> tagMatchSet = new HashSet<String>();
-				for (String tagValue : tagCondition) {
-					for (String lockKey : TAG_INDEX_POOL.get(pos).get(tagValue)) {
-						tagMatchSet.add(lockKey);
-					}
-				}
-				if (result.isEmpty()) {
-					result.addAll(tagMatchSet);
-				} else {
-					for (String lockKey : tagMatchSet) {
-						if (!result.contains(lockKey)) {
-							result.remove(lockKey);
-						}
-					}
-					for (String lockKey : result) {
-						if (!tagMatchSet.contains(lockKey)) {
-							result.remove(lockKey);
-						}
-					}
-				}
-			}
-		}
-		return result;
 	}
 
 	public static void releaseByTags(String lockType, String[][] tagConditions) {
@@ -275,6 +282,17 @@ public class LockServerCore {
 		return needBuildIndexesPosSet;
 	}
 
+	private static boolean judgeTagValuesIsEqual(String[] sourceTagValues, String[] targetTagValues) {
+		boolean result = true;
+		for (int pos = 0; pos < sourceTagValues.length; pos++) {
+			if (!sourceTagValues[pos].equals(targetTagValues[pos])) {
+				result = false;
+				break;
+			}
+		}
+		return result;
+	}
+
 	private static String[] extractPKValues(int[] pkGroups, String[] tagValues) {
 		String[] result = new String[pkGroups.length];
 		for (int pos = 0; pos < pkGroups.length; pos++) {
@@ -300,10 +318,10 @@ public class LockServerCore {
 				for (int pos = 0; pos < pkGroupIndexCell.length; pos++) {
 					String pkValue = pkValues[pos];
 					String pkGValue = pkGroupIndexCell[pos];
-					if (null == pkGValue) {
+					if ("*".equals(pkGValue)) {
 						continue;
 					}
-					if (null == pkValue) {
+					if ("*".equals(pkValue)) {
 						continue;
 					}
 					if (!pkValue.equals(pkGValue)) {
@@ -312,10 +330,40 @@ public class LockServerCore {
 					}
 				}
 				if (match) {
-					matchPkGroups.add(pkValues);
+					matchPkGroups.add(pkGroupIndexCell);
 				}
 			}
 		}
 		return matchPkGroups;
+	}
+
+	private static List<String> findByTags(String lockType, String[][] tagConditions) {
+		List<String> result = new LinkedList<String>();
+		for (int pos = 0; pos < tagConditions.length; pos++) {
+			String[] tagCondition = tagConditions[pos];
+			if (null != tagCondition && tagCondition.length > 0) {
+				Set<String> tagMatchSet = new HashSet<String>();
+				for (String tagValue : tagCondition) {
+					for (String lockKey : TAG_INDEX_POOL.get(pos).get(tagValue)) {
+						tagMatchSet.add(lockKey);
+					}
+				}
+				if (result.isEmpty()) {
+					result.addAll(tagMatchSet);
+				} else {
+					for (String lockKey : tagMatchSet) {
+						if (!result.contains(lockKey)) {
+							result.remove(lockKey);
+						}
+					}
+					for (String lockKey : result) {
+						if (!tagMatchSet.contains(lockKey)) {
+							result.remove(lockKey);
+						}
+					}
+				}
+			}
+		}
+		return result;
 	}
 }

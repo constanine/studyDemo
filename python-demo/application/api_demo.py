@@ -20,10 +20,13 @@ def test_getManualCellValue():
 #test_getManualCellValue();
 #result = ExcelTextboxTool.getXlsxTexts("resources/api-demo/test-A.xlsx");
 #print(result);
-#result = ExcelTextboxTool.getXlsTexts("resources/api-demo/TEST-DEMO1.xls");
+#result = ExcelTextboxTool.getXlsTexts("resources/api-demo/TEST-demo1.xls");
+#result = ExcelTextboxTool.getXlsTexts("resources/api-demo/TEST-demo3.xls");
+#result = ExcelTextboxTool.getXlsTexts2("D:/work/GIT_WORK/studyDemo/python-demo/application/resources/api-demo/TEST-A1.xls");
 #print(result);
-result = DocTextboxTool.getDocxTexts("resources/api-demo/test-A.docx");
+#result = DocTextboxTool.getDocxTexts("resources/api-demo/test-A.docx");
 #result = DocTextboxTool.getDocTexts("D:/work/GIT_WORK/studyDemo/python-demo/application/resources/api-demo/test-A.doc");
-print(result);
+#print(result);
 #test-A.doc
-
+result = DocTextboxTool.getPageHeader4Doc("D:/work/GIT_WORK/studyDemo/python-demo/application/resources/api-demo/test-A.doc");
+print(result);

@@ -1,0 +1,10 @@
+a = 2;
+b = bool(a);
+c = b.__ror__(4);
+print(a);
+print(b);
+print(b.__ror__(4));
+print(a.__ror__(4));
+print(bool(a).__ror__(4));
+d = [1, 2, 3, 4];
+print(d.__ror__(4));
