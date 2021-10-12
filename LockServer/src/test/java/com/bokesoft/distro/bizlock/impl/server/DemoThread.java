@@ -24,7 +24,9 @@ public class DemoThread extends Thread {
 			LockServerCore.acquire(lockType, lockType_pkg, lockType_sg, lockType_rg, isShared, tagValues, 300000);
 			System.out.println("线程:"+this.getName()+",获取锁成功");
 		} catch (InterruptedException e) {
-			System.err.print(e);
+			System.err.println(e.getMessage());
+		} catch (Exception e) {
+			System.err.println("线程:"+this.getName()+",获取锁失败:"+e.getMessage());
 		}
 	}
 }

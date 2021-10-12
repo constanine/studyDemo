@@ -55,7 +55,7 @@ public class LockServerCore {
 		registerLockType(lockType, pkGroups, searchIndexGourps, reetrantGroups);
 		String[] pkValues = extractPKValues(pkGroups, tagValues);
 		String[] reetrantValues = extractReetrantValues(reetrantGroups, tagValues);
-		String lockKey = buildPKString(pkValues);
+		String lockKey = buildPKString(lockType,pkValues);
 		LockTypeData lockTypeData = TAG_GROUP_POOL.get(lockType);
 		try {
 			if (lockTypeData.getLock().tryLock(1, TimeUnit.SECONDS)) {
@@ -80,7 +80,7 @@ public class LockServerCore {
 								String[] matchPkGroup = matchPkGroups.get(0);
 								canRelock = judgeTagValuesIsEqual(pkValues, matchPkGroup);
 								if (canRelock) {
-									if (!LOCK_POOL.get(buildPKString(matchPkGroup)).isShared()) {
+									if (!LOCK_POOL.get(buildPKString(lockType,matchPkGroup)).isShared()) {
 										String[] curReetrantValues = extractReetrantValues(reetrantGroups,
 												LOCK_POOL.get(lockKey).getTagValues());
 										canReentrant = judgeTagValuesIsEqual(reetrantValues, curReetrantValues);
@@ -91,9 +91,9 @@ public class LockServerCore {
 							}
 						} else {
 							for (String[] matchPkGroup : matchPkGroups) {
-								if (LOCK_POOL.get(buildPKString(matchPkGroup)).isShared()) {
+								if (LOCK_POOL.get(buildPKString(lockType,matchPkGroup)).isShared()) {
 									String[] curReetrantValues = extractReetrantValues(reetrantGroups,
-											LOCK_POOL.get(buildPKString(matchPkGroup)).getTagValues());
+											LOCK_POOL.get(buildPKString(lockType,matchPkGroup)).getTagValues());
 									canReentrant = judgeTagValuesIsEqual(reetrantValues, curReetrantValues);
 									if (!canReentrant) {
 										break;
@@ -113,26 +113,29 @@ public class LockServerCore {
 								buildTagIndex(lockType, lockKey, tagValues);
 							}
 						} else {
-							;
 							throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:"
 									+ beShared + ",tags:[" + StringUtils.join(tagValues, ",")
 									+ "] can't locked,beacuse of already has other locks:"
-									+ showOtherLocks(matchPkGroups));
+									+ showOtherLocks(lockType,matchPkGroups));
 						}
 					}
 				} finally {
 					lockTypeData.getLock().unlock();
 				}
+			}else{
+				throw new RuntimeException("LockType:" + lockType + ",LockKey:" + lockKey + ",isShared:"
+						+ beShared + ",tags:[" + StringUtils.join(tagValues, ",")
+						+ "] can't locked system is busy");
 			}
 		} catch (InterruptedException e) {
 			throw new InterruptedException("lock执行等待超时");
 		}
 	}
 
-	private static String showOtherLocks(List<String[]> matchPkGroups) {
+	private static String showOtherLocks(String lockType,List<String[]> matchPkGroups) {
 		StringBuffer result = new StringBuffer("[");
 		for (String[] matchPkGroup : matchPkGroups) {
-			result.append(buildPKString(matchPkGroup) + ",");
+			result.append(buildPKString(lockType,matchPkGroup) + ",");
 		}
 		result.append("]");
 		return result.toString();
@@ -142,7 +145,7 @@ public class LockServerCore {
 			String[] tagValues, long expireTimeMs) {
 		String[] pkValues = extractPKValues(pkGroups, tagValues);
 		String[] reetrantValues = extractReetrantValues(reetrantGroups, tagValues);
-		String lockKey = buildPKString(pkValues);
+		String lockKey = buildPKString(lockType,pkValues);
 		LockTypeData lockTypeData = TAG_GROUP_POOL.get(lockType);
 		if (lockTypeData.getLock().tryLock()) {
 			if (LOCK_POOL.get(lockKey).isShared() | beShared) {
@@ -174,7 +177,7 @@ public class LockServerCore {
 			boolean beShared, String[] tagValues) {
 		String[] pkValues = extractPKValues(pkGroups, tagValues);
 		String[] reetrantValues = extractReetrantValues(reetrantGroups, tagValues);
-		String lockKey = buildPKString(pkValues);
+		String lockKey = buildPKString(lockType,pkValues);
 		LockTypeData lockTypeData = TAG_GROUP_POOL.get(lockType);
 		if (lockTypeData.getLock().tryLock()) {
 			if (LOCK_POOL.get(lockKey).isShared() | beShared) {
@@ -215,8 +218,8 @@ public class LockServerCore {
 		}
 	}
 
-	private static String buildPKString(String[] pkValues) {
-		return StringUtils.join(pkValues, "-");
+	private static String buildPKString(String lockType,String[] pkValues) {
+		return lockType+"|"+StringUtils.join(pkValues, "-");
 	}
 
 	private static void buildTagIndex(String lockType, String lockKey, String[] tagValues) {
@@ -246,7 +249,7 @@ public class LockServerCore {
 		pkGroupIndex.add(pkValues);
 	}
 
-	private static void init_TAG_INDEX_POOL(Set<Integer> tags) {
+	private static synchronized void init_TAG_INDEX_POOL(Set<Integer> tags) {
 		int maxPos = 0;
 		for (int pos : tags) {
 			if (pos > maxPos) {
