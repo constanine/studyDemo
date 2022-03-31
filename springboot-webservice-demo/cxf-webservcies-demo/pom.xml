@@ -9,7 +9,7 @@
 	<description>cxf-webservcies-demo</description>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<springboot.version>2.1.3.RELEASE</springboot.version>
+		<springboot.version>2.5.12</springboot.version>
 		<yigo2.distro.ext.version>1.0.0-SNAPSHOT</yigo2.distro.ext.version>
 	</properties>
 	<dependencies>
